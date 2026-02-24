@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frühjahrsrunde</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#1a1a2e;color:#eee;min-height:100vh}
+h1{background:linear-gradient(135deg,#16213e,#0f3460);color:#e94560;text-align:center;padding:14px;font-size:1.3em;letter-spacing:2px;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+#sync-indicator{font-size:0.7em;padding:3px 8px;border-radius:10px;background:#555;color:#fff;white-space:nowrap}
+#sync-indicator.online{background:#2ecc71}
+#sync-indicator.offline{background:#e67e22}
+#sync-indicator.syncing{background:#3498db}
+nav{display:flex;flex-wrap:wrap;background:#16213e;border-bottom:2px solid #e94560}
+nav button{flex:1;min-width:90px;padding:11px 4px;background:none;border:none;color:#aaa;cursor:pointer;font-size:0.78em;transition:all 0.2s}
+nav button.active,nav button:hover{background:#0f3460;color:#e94560}
+.page{display:none;padding:14px;max-width:1200px;margin:0 auto}
+.page.active{display:block}
+.card{background:#16213e;border-radius:8px;padding:14px;margin-bottom:14px;border:1px solid #0f3460}
+.card h2{color:#e94560;margin-bottom:10px;font-size:1.05em}
+label{display:block;margin-bottom:3px;color:#aaa;font-size:0.82em}
+input,select{width:100%;padding:7px;border:1px solid #0f3460;border-radius:4px;background:#0f3460;color:#eee;margin-bottom:8px;font-size:0.88em}
+.btn{padding:9px 16px;border:none;border-radius:4px;cursor:pointer;font-size:0.86em;font-weight:bold;transition:all 0.2s;margin-right:4px;margin-bottom:4px}
+.btn-primary{background:#e94560;color:#fff}.btn-primary:hover{background:#c73652}
+.btn-success{background:#2ecc71;color:#fff}.btn-success:hover{background:#27ae60}
+.btn-warn{background:#e67e22;color:#fff}.btn-warn:hover{background:#ca6f1e}
+.btn-danger{background:#c0392b;color:#fff}
+.btn-info{background:#2980b9;color:#fff}
+.btn-purple{background:#8e44ad;color:#fff}
+.btn-sm{padding:4px 8px;font-size:0.76em}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.col{flex:1;min-width:160px}
+table{width:100%;border-collapse:collapse;font-size:0.82em}
+th{background:#0f3460;color:#e94560;padding:7px 6px;text-align:left;position:sticky;top:0;z-index:1;white-space:nowrap;user-select:none}
+th.sortable{cursor:pointer}
+th.sortable:hover{background:#1a4a7a}
+th .sort-arrow{margin-left:4px;opacity:0.5}
+th.asc .sort-arrow::after{content:'▲'}
+th.desc .sort-arrow::after{content:'▼'}
+th:not(.asc):not(.desc) .sort-arrow::after{content:'⇅'}
+td{padding:6px 6px;border-bottom:1px solid #0f3460;vertical-align:middle}
+tr:hover td{background:rgba(15,52,96,0.5)}
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:0.74em;font-weight:bold}
+.tag-stehend{background:#e94560;color:#fff}
+.tag-aufgelegt{background:#9b59b6;color:#fff}
+.tag-lg{background:#2980b9;color:#fff}
+.tag-lp{background:#16a085;color:#fff}
+.tag-licht{background:#8e44ad;color:#fff}
+.tag-ja{background:#f39c12;color:#000}
+.alert{padding:9px 12px;border-radius:4px;margin-bottom:10px;font-size:0.87em}
+.alert-info{background:#1a5276;border-left:4px solid #2980b9}
+.no-data{text-align:center;color:#555;padding:20px;font-style:italic}
+.competition-item{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#0f3460;border-radius:6px;margin-bottom:7px;gap:8px;flex-wrap:wrap}
+.overflow{overflow-x:auto}
+#toast{position:fixed;bottom:20px;right:20px;background:#2ecc71;color:#fff;padding:11px 18px;border-radius:8px;font-size:0.88em;display:none;z-index:9999;max-width:280px}
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#16213e;border:1px solid #e94560;border-radius:10px;padding:20px;width:92%;max-width:520px;max-height:85vh;overflow-y:auto}
+.modal h3{color:#e94560;margin-bottom:12px}
+.prev-list{max-height:320px;overflow-y:auto}
+.prev-item{padding:8px 10px;background:#0f3460;border-radius:4px;margin-bottom:5px;cursor:pointer;font-size:0.84em;border:1px solid transparent}
+.prev-item:hover{border-color:#e94560}
+@media(max-width:600px){nav button{font-size:0.7em;padding:9px 2px}.row{flex-direction:column}}
+@media print{nav,#toast,.no-print{display:none!important}.page{display:block!important;padding:4px}body{background:#fff;color:#000}th{color:#000;background:#ddd}.card{border:1px solid #ccc;page-break-inside:avoid}}
+</style>
+</head>
+<body>
+<h1>🎯 FRÜHJAHRSRUNDE <span id="sync-indicator" class="offline">⏳ Laden...</span></h1>
+<nav>
+  <button onclick="showPage('p-competitions')" id="nav-competitions" class="active">Wettkämpfe</button>
+  <button onclick="showPage('p-registration')" id="nav-registration">Anmeldung</button>
+  <button onclick="showPage('p-results')" id="nav-results">Ergebnisse</button>
+  <button onclick="showPage('p-evaluation')" id="nav-evaluation">Auswertung Tag</button>
+  <button onclick="showPage('p-overall')" id="nav-overall">Jahresgesamt</button>
+</nav>
+
+<!-- ═══════════════ WETTKÄMPFE ═══════════════ -->
+<div id="p-competitions" class="page active">
+  <div class="card">
+    <h2>Neuer Wettkampf</h2>
+    <div class="row">
+      <div class="col"><label>Jahr</label><select id="c-year"></select></div>
+      <div class="col"><label>Datum (TT.MM.JJJJ)</label><input type="text" id="c-date" placeholder="01.01.2025" maxlength="10"></div>
+      <div class="col"><label>Ort</label><input type="text" id="c-location" placeholder="z.B. Musterstadt"></div>
+    </div>
+    <button class="btn btn-primary" onclick="addCompetition()">+ Wettkampf anlegen</button>
+  </div>
+  <div class="card">
+    <h2>Wettkämpfe &nbsp;<select id="filter-year" onchange="renderCompetitions()" style="width:auto;display:inline;margin:0;padding:3px;font-size:0.85em"></select></h2>
+    <div id="competition-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ ANMELDUNG ═══════════════ -->
+<div id="p-registration" class="page">
+  <div class="card">
+    <h2>Wettkampf wählen</h2>
+    <select id="reg-comp" onchange="onRegCompChange()"><option value="">-- Wettkampf wählen --</option></select>
+  </div>
+  <div class="card" id="reg-form-card" style="display:none">
+    <h2 id="reg-form-title">Teilnehmer anmelden</h2>
+    <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-info no-print" onclick="openPrevModal()">👤 Bekannten Schützen wählen</button>
+      <button class="btn btn-purple no-print" onclick="document.getElementById('excel-import').click()">📥 Schützenliste Excel importieren</button>
+      <input type="file" id="excel-import" accept=".xlsx,.xls" style="display:none" onchange="importShootersExcel(event)">
+    </div>
+    <div class="row">
+      <div class="col"><label>Name</label><input type="text" id="reg-name" placeholder="Nachname"></div>
+      <div class="col"><label>Vorname</label><input type="text" id="reg-firstname" placeholder="Vorname"></div>
+    </div>
+    <div class="row">
+      <div class="col"><label>Verein</label><input type="text" id="reg-club" placeholder="Vereinsname" list="club-list"><datalist id="club-list"></datalist></div>
+      <div class="col"><label>Disziplin</label>
+        <select id="reg-disc" onchange="updateTeamSelect()">
+          <option value="stehend">Schießen stehend</option>
+          <option value="aufgelegt">Schießen aufgelegt</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col"><label>Waffe</label>
+        <select id="reg-weapon">
+          <option value="LG">Luftgewehr (LG)</option>
+          <option value="LP">Luftpistole (LP)</option>
+          <option value="Licht">Lichtgewehr</option>
+        </select>
+      </div>
+      <div class="col"><label>Mannschaft (Farbe)</label><select id="reg-team"></select></div>
+    </div>
+    <div class="row">
+      <div class="col" style="display:flex;align-items:center;gap:8px;padding-top:14px">
+        <input type="checkbox" id="reg-youth" style="width:18px;height:18px;margin:0;cursor:pointer">
+        <label for="reg-youth" style="margin:0;color:#eee;cursor:pointer">Jugendlicher unter 14 Jahren</label>
+      </div>
+    </div>
+    <div style="margin-top:10px">
+      <button class="btn btn-primary" id="reg-save-btn" onclick="saveParticipant()">+ Anmelden</button>
+      <button class="btn btn-warn" id="reg-cancel-btn" onclick="cancelEdit()" style="display:none">Abbrechen</button>
+    </div>
+    <input type="hidden" id="reg-edit-id">
+  </div>
+  <div class="card" id="reg-list-card" style="display:none">
+    <h2>Angemeldete Teilnehmer <span id="reg-count" style="color:#aaa;font-size:0.85em"></span>
+      <span style="float:right;font-size:0.8em;color:#aaa">Spalte klicken zum Sortieren</span>
+    </h2>
+    <div class="overflow">
+      <table id="reg-table">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="sortTable('name')" data-col="name">Name<span class="sort-arrow"></span></th>
+            <th class="sortable" onclick="sortTable('firstname')" data-col="firstname">Vorname<span class="sort-arrow"></span></th>
+            <th class="sortable" onclick="sortTable('club')" data-col="club">Verein<span class="sort-arrow"></span></th>
+            <th class="sortable" onclick="sortTable('disc')" data-col="disc">Disziplin<span class="sort-arrow"></span></th>
+            <th class="sortable" onclick="sortTable('weapon')" data-col="weapon">Waffe<span class="sort-arrow"></span></th>
+            <th class="sortable" onclick="sortTable('team')" data-col="team">Mannschaft<span class="sort-arrow"></span></th>
+            <th class="sortable" onclick="sortTable('youth')" data-col="youth">Jugend<span class="sort-arrow"></span></th>
+            <th class="sortable" onclick="sortTable('rings')" data-col="rings">Ringe<span class="sort-arrow"></span></th>
+            <th class="no-print"></th>
+          </tr>
+        </thead>
+        <tbody id="reg-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ ERGEBNISSE ═══════════════ -->
+<div id="p-results" class="page">
+  <div class="card">
+    <h2>Wettkampf wählen</h2>
+    <select id="res-comp" onchange="renderResultList()"><option value="">-- Wettkampf wählen --</option></select>
+  </div>
+  <div class="card" id="res-list-card" style="display:none">
+    <h2>Ergebnisse eingeben</h2>
+    <div class="alert alert-info">Ringe direkt in der Tabelle eintragen (0–400).</div>
+    <div class="overflow"><table>
+      <thead><tr><th>Name</th><th>Vorname</th><th>Verein</th><th>Disziplin</th><th>Waffe</th><th>Mannschaft</th><th>Jugend</th><th>Ringe</th></tr></thead>
+      <tbody id="res-tbody"></tbody>
+    </table></div>
+    <br><button class="btn btn-success no-print" onclick="showPage('p-evaluation')">→ Zur Auswertung</button>
+  </div>
+</div>
+
+<!-- ═══════════════ AUSWERTUNG TAG ═══════════════ -->
+<div id="p-evaluation" class="page">
+  <div class="card no-print">
+    <h2>Wettkampf wählen</h2>
+    <select id="eval-comp" onchange="renderEvaluation()"><option value="">-- Wettkampf wählen --</option></select>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-success" onclick="renderEvaluation()">🔄 Aktualisieren</button>
+      <button class="btn btn-warn" onclick="window.print()">🖨 Drucken</button>
+      <button class="btn btn-success" onclick="exportEvalExcel()">📊 Excel</button>
+      <button class="btn btn-info" onclick="exportEvalPDF()">📄 PDF</button>
+    </div>
+  </div>
+  <div id="eval-content"></div>
+</div>
+
+<!-- ═══════════════ JAHRESGESAMT ═══════════════ -->
+<div id="p-overall" class="page">
+  <div class="card no-print">
+    <h2>Jahr wählen</h2>
+    <select id="overall-year" onchange="renderOverall()"></select>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-success" onclick="renderOverall()">🔄 Aktualisieren</button>
+      <button class="btn btn-warn" onclick="window.print()">🖨 Drucken</button>
+      <button class="btn btn-success" onclick="exportOverallExcel()">📊 Excel</button>
+      <button class="btn btn-info" onclick="exportOverallPDF()">📄 PDF</button>
+    </div>
+  </div>
+  <div id="overall-content"></div>
+</div>
+
+<!-- ═══════════════ MODAL: Bekannte Schützen ═══════════════ -->
+<div class="modal-overlay" id="prev-modal">
+  <div class="modal">
+    <h3>👤 Bekannten Schützen wählen</h3>
+    <input type="text" id="prev-search" placeholder="Name / Verein suchen..." oninput="filterPrevList()"
+      style="width:100%;padding:7px;border:1px solid #0f3460;border-radius:4px;background:#0f3460;color:#eee;margin-bottom:8px">
+    <div class="prev-list" id="prev-list"></div>
+    <br><button class="btn btn-danger" onclick="closePrevModal()">Schließen</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════ KONSTANTEN ═══════
+const STEHEND_TEAMS=['Pink','Grün','Blau','Gelb','Rot'];
+const AUFGELEGT_TEAMS=['Orange','Lila','Hellblau'];
+const TEAM_COLORS={Pink:'#ff69b4',Grün:'#2ecc71',Blau:'#2980b9',Gelb:'#f1c40f',Rot:'#e74c3c',Orange:'#e67e22',Lila:'#9b59b6',Hellblau:'#87ceeb'};
+const STEHEND_PTS=[5,4,3,2,1];
+const AUFGELEGT_PTS=[5,3,1];   // Platz1=5, Platz2=3, Platz3=1
+const STORAGE_KEY='fruhjahrsrunde_v2';
+
+let DB={competitions:[],participants:[]};
+let pendingSync=false;
+let isOnline=navigator.onLine;
+let sortCol='name', sortDir=1;
+
+// ═══════ DATUM ═══════
+function fmtDate(raw){
+  // raw stored as DDMMYYYY digits, display as DD.MM.YYYY
+  if(!raw) return '';
+  const d=raw.replace(/\D/g,'');
+  if(d.length===8) return d.slice(0,2)+'.'+d.slice(2,4)+'.'+d.slice(4);
+  return raw;
+}
+function parseDate(input){
+  // Accept DD.MM.YYYY or DDMMYYYY → store as DDMMYYYY
+  const d=input.replace(/\D/g,'');
+  if(d.length===8) return d;
+  return null;
+}
+function dateForSort(raw){
+  const d=raw.replace(/\D/g,'');
+  if(d.length===8) return d.slice(4)+d.slice(2,4)+d.slice(0,2); // YYYYMMDD
+  return d;
+}
+
+// ═══════ STORAGE / SYNC ═══════
+function loadLocal(){
+  try{const d=localStorage.getItem(STORAGE_KEY);if(d)DB=JSON.parse(d);}catch(e){}
+}
+function saveLocal(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(DB));}catch(e){}
+}
+function setSyncStatus(cls,txt){
+  const el=document.getElementById('sync-indicator');
+  el.className=cls; el.textContent=txt;
+}
+async function syncToCloud(){
+  setSyncStatus('syncing','⏳ Sync...');
+  try{
+    await window.storage.set(STORAGE_KEY,JSON.stringify(DB),false);
+    pendingSync=false;
+    setSyncStatus('online','☁ Online');
+  }catch(e){pendingSync=true;setSyncStatus('offline','📵 Offline');}
+}
+async function loadFromCloud(){
+  try{
+    const r=await window.storage.get(STORAGE_KEY,false);
+    if(r&&r.value){
+      const cloud=JSON.parse(r.value);
+      const lTotal=DB.competitions.length+DB.participants.length;
+      const cTotal=cloud.competitions.length+cloud.participants.length;
+      if(cTotal>=lTotal){DB=cloud;saveLocal();}
+    }
+    setSyncStatus('online','☁ Online');
+  }catch(e){setSyncStatus('offline','📵 Offline – lokale Daten');}
+}
+async function persistData(){
+  saveLocal();
+  if(isOnline) await syncToCloud();
+  else{pendingSync=true;setSyncStatus('offline','📵 Offline (ungespeichert)');}
+}
+window.addEventListener('online',async()=>{
+  isOnline=true;
+  if(pendingSync){toast('Verbindung wiederhergestellt – synchronisiere...');await syncToCloud();}
+  else setSyncStatus('online','☁ Online');
+});
+window.addEventListener('offline',()=>{isOnline=false;setSyncStatus('offline','📵 Offline');});
+
+// ═══════ UTILS ═══════
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+function toast(msg,col='#2ecc71'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=col;t.style.display='block';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',2800);
+}
+function teamBadge(name){
+  if(!name)return'–';
+  const col=TEAM_COLORS[name]||'#555';
+  const txt=['Gelb','Hellblau'].includes(name)?'#222':'#fff';
+  return`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${col};margin-right:4px;vertical-align:middle"></span><span style="color:${col};font-weight:bold">${name}</span>`;
+}
+function wBadge(w){const c=w==='LG'?'tag-lg':w==='LP'?'tag-lp':'tag-licht';return`<span class="badge ${c}">${w}</span>`;}
+function dBadge(d){return`<span class="badge tag-${d}">${d==='stehend'?'Stehend':'Aufgelegt'}</span>`;}
+
+// ═══════ NAV ═══════
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('nav-'+id.replace('p-','')).classList.add('active');
+  if(id==='p-registration') refreshCompSelects();
+  if(id==='p-results'){refreshCompSelects();renderResultList();}
+  if(id==='p-evaluation'){refreshCompSelects();renderEvaluation();}
+  if(id==='p-overall'){refreshYearSelects();renderOverall();}
+}
+
+// ═══════ JAHRE ═══════
+function getYears(){
+  const yrs=new Set();
+  DB.competitions.forEach(c=>yrs.add(c.year));
+  const cur=new Date().getFullYear();
+  [cur-1,cur,cur+1].forEach(y=>yrs.add(y));
+  return[...yrs].sort((a,b)=>b-a);
+}
+function refreshYearSelects(){
+  const yrs=getYears(); const cur=new Date().getFullYear();
+  ['c-year','filter-year','overall-year'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const prev=parseInt(el.value)||cur;
+    el.innerHTML=yrs.map(y=>`<option value="${y}">${y}</option>`).join('');
+    el.value=yrs.includes(prev)?prev:cur;
+  });
+}
+function refreshCompSelects(){
+  const sorted=[...DB.competitions].sort((a,b)=>dateForSort(b.date).localeCompare(dateForSort(a.date)));
+  const opts=sorted.map(c=>`<option value="${c.id}">${fmtDate(c.date)} – ${c.location} (${c.year})</option>`).join('');
+  ['reg-comp','res-comp','eval-comp'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const prev=el.value;
+    el.innerHTML='<option value="">-- Wettkampf wählen --</option>'+opts;
+    if(prev) el.value=prev;
+  });
+}
+
+// ═══════ WETTKÄMPFE ═══════
+async function addCompetition(){
+  const year=parseInt(document.getElementById('c-year').value);
+  const dateRaw=parseDate(document.getElementById('c-date').value);
+  const loc=document.getElementById('c-location').value.trim();
+  if(!dateRaw||!loc){toast('Datum (TT.MM.JJJJ) und Ort erforderlich!','#e74c3c');return;}
+  if(DB.competitions.filter(c=>c.year===year).length>=8){toast('Max. 8 Wettkämpfe pro Jahr!','#e74c3c');return;}
+  DB.competitions.push({id:uid(),year,date:dateRaw,location:loc});
+  await persistData();
+  refreshYearSelects();renderCompetitions();refreshCompSelects();
+  toast('Wettkampf angelegt!');
+  document.getElementById('c-date').value='';
+  document.getElementById('c-location').value='';
+}
+async function deleteCompetition(id){
+  if(!confirm('Wettkampf und alle Teilnehmerdaten löschen?'))return;
+  DB.competitions=DB.competitions.filter(c=>c.id!==id);
+  DB.participants=DB.participants.filter(p=>p.compId!==id);
+  await persistData();renderCompetitions();refreshCompSelects();toast('Gelöscht','#e67e22');
+}
+function renderCompetitions(){
+  const year=parseInt(document.getElementById('filter-year').value)||new Date().getFullYear();
+  const list=DB.competitions.filter(c=>c.year===year).sort((a,b)=>dateForSort(a.date).localeCompare(dateForSort(b.date)));
+  const el=document.getElementById('competition-list');
+  if(!list.length){el.innerHTML='<div class="no-data">Keine Wettkämpfe für dieses Jahr.</div>';return;}
+  el.innerHTML=list.map((c,i)=>{
+    const cnt=DB.participants.filter(p=>p.compId===c.id).length;
+    return`<div class="competition-item">
+      <div><strong>#${i+1} ${fmtDate(c.date)}</strong> – ${c.location} <span style="color:#aaa;font-size:0.85em">(${cnt} Teilnehmer)</span></div>
+      <button class="btn btn-danger btn-sm no-print" onclick="deleteCompetition('${c.id}')">Löschen</button>
+    </div>`;
+  }).join('');
+}
+
+// ═══════ TEAMS ═══════
+function getTeams(disc){return disc==='stehend'?STEHEND_TEAMS:AUFGELEGT_TEAMS;}
+function updateTeamSelect(){
+  const disc=document.getElementById('reg-disc').value;
+  const teams=getTeams(disc);
+  document.getElementById('reg-team').innerHTML=teams.map(t=>`<option value="${t}">${t}</option>`).join('');
+}
+
+// ═══════ SORT TABLE ═══════
+function sortTable(col){
+  if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
+  document.querySelectorAll('#reg-table th[data-col]').forEach(th=>{
+    th.classList.remove('asc','desc');
+    if(th.dataset.col===col) th.classList.add(sortDir===1?'asc':'desc');
+  });
+  renderParticipantList();
+}
+
+// ═══════ ANMELDUNG ═══════
+function onRegCompChange(){
+  updateTeamSelect();
+  renderParticipantList();
+  const clubs=[...new Set(DB.participants.map(p=>p.club).filter(Boolean))].sort();
+  document.getElementById('club-list').innerHTML=clubs.map(c=>`<option value="${c}">`).join('');
+}
+function getCompParticipants(){
+  const compId=document.getElementById('reg-comp').value;
+  if(!compId) return [];
+  let parts=DB.participants.filter(p=>p.compId===compId);
+  parts.sort((a,b)=>{
+    let av=a[sortCol]??'', bv=b[sortCol]??'';
+    if(sortCol==='rings'){av=parseFloat(av)||0;bv=parseFloat(bv)||0;}
+    if(sortCol==='youth'){av=av?1:0;bv=bv?1:0;}
+    if(av<bv) return -sortDir; if(av>bv) return sortDir; return 0;
+  });
+  return parts;
+}
+function renderParticipantList(){
+  const compId=document.getElementById('reg-comp').value;
+  document.getElementById('reg-form-card').style.display=compId?'block':'none';
+  document.getElementById('reg-list-card').style.display=compId?'block':'none';
+  if(!compId) return;
+  const parts=getCompParticipants();
+  document.getElementById('reg-count').textContent=`(${parts.length})`;
+  const tbody=document.getElementById('reg-tbody');
+  tbody.innerHTML=parts.map(p=>`<tr>
+    <td>${p.name}</td><td>${p.firstname}</td><td>${p.club}</td>
+    <td>${dBadge(p.disc)}</td><td>${wBadge(p.weapon)}</td>
+    <td>${teamBadge(p.team)}</td>
+    <td>${p.youth?'<span class="badge tag-ja">J</span>':''}</td>
+    <td>${p.rings!==''&&p.rings!=null?p.rings:'–'}</td>
+    <td class="no-print" style="white-space:nowrap">
+      <button class="btn btn-info btn-sm" onclick="editParticipant('${p.id}')">✏</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteParticipant('${p.id}')">✕</button>
+    </td>
+  </tr>`).join('');
+  if(!parts.length) tbody.innerHTML='<tr><td colspan="9" class="no-data">Noch keine Teilnehmer.</td></tr>';
+}
+function clearRegForm(){
+  document.getElementById('reg-name').value='';
+  document.getElementById('reg-firstname').value='';
+  document.getElementById('reg-club').value='';
+  document.getElementById('reg-disc').value='stehend';
+  updateTeamSelect();
+  document.getElementById('reg-weapon').value='LG';
+  document.getElementById('reg-youth').checked=false;
+  document.getElementById('reg-edit-id').value='';
+}
+function editParticipant(id){
+  const p=DB.participants.find(x=>x.id===id);if(!p)return;
+  document.getElementById('reg-name').value=p.name;
+  document.getElementById('reg-firstname').value=p.firstname;
+  document.getElementById('reg-club').value=p.club;
+  document.getElementById('reg-disc').value=p.disc;
+  updateTeamSelect();
+  document.getElementById('reg-weapon').value=p.weapon;
+  document.getElementById('reg-team').value=p.team;
+  document.getElementById('reg-youth').checked=!!p.youth;
+  document.getElementById('reg-edit-id').value=id;
+  document.getElementById('reg-form-title').textContent='✏ Teilnehmer bearbeiten';
+  document.getElementById('reg-save-btn').textContent='💾 Speichern';
+  document.getElementById('reg-cancel-btn').style.display='inline-block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function cancelEdit(){
+  clearRegForm();
+  document.getElementById('reg-form-title').textContent='Teilnehmer anmelden';
+  document.getElementById('reg-save-btn').textContent='+ Anmelden';
+  document.getElementById('reg-cancel-btn').style.display='none';
+}
+async function saveParticipant(){
+  const compId=document.getElementById('reg-comp').value;if(!compId)return;
+  const name=document.getElementById('reg-name').value.trim();
+  const firstname=document.getElementById('reg-firstname').value.trim();
+  const club=document.getElementById('reg-club').value.trim();
+  const disc=document.getElementById('reg-disc').value;
+  const weapon=document.getElementById('reg-weapon').value;
+  const team=document.getElementById('reg-team').value;
+  const youth=document.getElementById('reg-youth').checked;
+  if(!name||!firstname||!club){toast('Name, Vorname und Verein erforderlich!','#e74c3c');return;}
+  const editId=document.getElementById('reg-edit-id').value;
+  if(editId){
+    const p=DB.participants.find(x=>x.id===editId);
+    if(p) Object.assign(p,{name,firstname,club,disc,weapon,team,youth});
+    cancelEdit();
+    toast('Gespeichert!');
+  }else{
+    DB.participants.push({id:uid(),compId,name,firstname,club,disc,weapon,team,youth,rings:''});
+    clearRegForm();
+    toast('Angemeldet!');
+  }
+  await persistData();
+  renderParticipantList();
+}
+async function deleteParticipant(id){
+  if(!confirm('Teilnehmer löschen?'))return;
+  DB.participants=DB.participants.filter(p=>p.id!==id);
+  await persistData();renderParticipantList();toast('Gelöscht','#e67e22');
+}
+
+// ═══════ EXCEL IMPORT SCHÜTZEN ═══════
+function importShootersExcel(evt){
+  const file=evt.target.files[0];if(!file)return;
+  const compId=document.getElementById('reg-comp').value;if(!compId){toast('Bitte zuerst Wettkampf wählen','#e74c3c');return;}
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      // Expected columns (case-insensitive): Name, Vorname, Verein, Disziplin, Waffe, Jugend
+      let added=0,skipped=0;
+      rows.forEach(row=>{
+        const get=(...keys)=>{for(const k of keys){const found=Object.keys(row).find(r=>r.toLowerCase().trim()===k.toLowerCase());if(found)return String(row[found]).trim();}return'';};
+        const name=get('name','nachname');
+        const firstname=get('vorname','firstname');
+        const club=get('verein','club','verein/club');
+        const discRaw=get('disziplin','disc','discipline').toLowerCase();
+        const weaponRaw=get('waffe','weapon').toLowerCase();
+        const youthRaw=get('jugend','youth','jugendlicher').toLowerCase();
+        if(!name||!firstname){skipped++;return;}
+        const disc=discRaw.includes('aufgelegt')?'aufgelegt':'stehend';
+        const weapon=weaponRaw.includes('licht')?'Licht':weaponRaw.includes('lp')||weaponRaw.includes('pistole')?'LP':'LG';
+        const youth=youthRaw==='ja'||youthRaw==='1'||youthRaw==='true';
+        const teams=getTeams(disc);
+        const team=teams[0];
+        DB.participants.push({id:uid(),compId,name,firstname,club:club||'–',disc,weapon,team,youth,rings:''});
+        added++;
+      });
+      await persistData();
+      renderParticipantList();
+      toast(`${added} Schützen importiert${skipped?', '+skipped+' übersprungen':''}`);
+    }catch(err){toast('Fehler beim Import: '+err.message,'#e74c3c');}
+    evt.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ═══════ MODAL: Bekannte Schützen ═══════
+function openPrevModal(){
+  const compId=document.getElementById('reg-comp').value;
+  const known=[];const seen=new Set();
+  DB.participants
+    .filter(p=>p.compId!==compId)
+    .sort((a,b)=>a.name.localeCompare(b.name))
+    .forEach(p=>{
+      const k=`${p.name}|${p.firstname}|${p.club}`;
+      if(!seen.has(k)){seen.add(k);known.push(p);}
+    });
+  window._prevAll=known;
+  document.getElementById('prev-search').value='';
+  filterPrevList();
+  document.getElementById('prev-modal').classList.add('open');
+}
+function filterPrevList(){
+  const q=(document.getElementById('prev-search').value||'').toLowerCase();
+  const filtered=(window._prevAll||[]).filter(p=>(p.name+' '+p.firstname+' '+p.club).toLowerCase().includes(q));
+  const el=document.getElementById('prev-list');
+  if(!filtered.length){el.innerHTML='<div class="no-data">Keine Schützen gefunden.</div>';return;}
+  el.innerHTML=filtered.slice(0,80).map(p=>`<div class="prev-item" onclick="selectPrev('${p.id}')">
+    <strong>${p.name}, ${p.firstname}</strong> – ${p.club}<br>
+    <small style="color:#aaa">${dBadge(p.disc)} ${wBadge(p.weapon)} ${p.youth?'<span class="badge tag-ja">Jugend</span>':''}</small>
+  </div>`).join('');
+}
+function selectPrev(id){
+  const p=DB.participants.find(x=>x.id===id);if(!p)return;
+  document.getElementById('reg-name').value=p.name;
+  document.getElementById('reg-firstname').value=p.firstname;
+  document.getElementById('reg-club').value=p.club;
+  document.getElementById('reg-disc').value=p.disc;
+  updateTeamSelect();
+  document.getElementById('reg-weapon').value=p.weapon;
+  document.getElementById('reg-youth').checked=!!p.youth;
+  closePrevModal();
+  toast('Schütze übernommen – bitte Mannschaft wählen');
+}
+function closePrevModal(){document.getElementById('prev-modal').classList.remove('open');}
+
+// ═══════ ERGEBNISSE ═══════
+function renderResultList(){
+  const compId=document.getElementById('res-comp').value;
+  document.getElementById('res-list-card').style.display=compId?'block':'none';
+  if(!compId)return;
+  const parts=DB.participants.filter(p=>p.compId===compId).sort((a,b)=>a.name.localeCompare(b.name));
+  const tbody=document.getElementById('res-tbody');
+  tbody.innerHTML=parts.map(p=>`<tr>
+    <td>${p.name}</td><td>${p.firstname}</td><td>${p.club}</td>
+    <td>${dBadge(p.disc)}</td><td>${wBadge(p.weapon)}</td>
+    <td>${teamBadge(p.team)}</td>
+    <td>${p.youth?'<span class="badge tag-ja">J</span>':''}</td>
+    <td><input type="number" min="0" max="400"
+      style="width:74px;padding:4px;background:#0f3460;border:1px solid #2980b9;border-radius:4px;color:#eee"
+      value="${p.rings!==''&&p.rings!=null?p.rings:''}"
+      onchange="setRings('${p.id}',this.value)" placeholder="–"></td>
+  </tr>`).join('');
+  if(!parts.length) tbody.innerHTML='<tr><td colspan="8" class="no-data">Keine Teilnehmer.</td></tr>';
+}
+async function setRings(id,val){
+  const p=DB.participants.find(x=>x.id===id);
+  if(p){p.rings=val===''?'':parseInt(val);await persistData();}
+}
+
+// ═══════ KALKULATION ═══════
+function calcTeamResults(parts,disc){
+  const teams=getTeams(disc);
+  const pts=disc==='stehend'?STEHEND_PTS:AUFGELEGT_PTS;
+  const topN=disc==='stehend'?5:3;
+  const byTeam={};teams.forEach(t=>byTeam[t]=[]);
+  parts.filter(p=>p.disc===disc&&p.rings!==''&&p.rings!=null&&p.rings!==undefined)
+    .forEach(p=>{if(byTeam[p.team])byTeam[p.team].push(p);});
+  const res=teams.map(t=>{
+    const sorted=[...byTeam[t]].sort((a,b)=>b.rings-a.rings);
+    const top=sorted.slice(0,topN);
+    const ringSum=top.reduce((s,p)=>s+(parseInt(p.rings)||0),0);
+    return{team:t,ringSum,shooters:byTeam[t],top};
+  }).filter(t=>t.shooters.length>0);
+  res.sort((a,b)=>b.ringSum-a.ringSum);
+  res.forEach((t,i)=>{t.place=i+1;t.pts=pts[i]||0;});
+  return res;
+}
+function buildEvalData(compId){
+  const comp=DB.competitions.find(c=>c.id===compId);if(!comp)return null;
+  const parts=DB.participants.filter(p=>p.compId===compId);
+  const stRes=calcTeamResults(parts,'stehend');
+  const auRes=calcTeamResults(parts,'aufgelegt');
+  const tPts={};
+  stRes.forEach(t=>{tPts[t.team]=tPts[t.team]||{};tPts[t.team].stehend=t.pts;});
+  auRes.forEach(t=>{tPts[t.team]=tPts[t.team]||{};tPts[t.team].aufgelegt=t.pts;});
+  const dayPts={};
+  [...stRes,...auRes].forEach(t=>{dayPts[t.team]=(dayPts[t.team]||0)+t.pts;});
+  const dayRank=Object.entries(dayPts).sort((a,b)=>b[1]-a[1]).map(([team,pts],i)=>({team,pts,place:i+1}));
+  return{comp,parts,stRes,auRes,tPts,dayRank};
+}
+
+// ═══════ AUSWERTUNG TAG ═══════
+function renderEvaluation(){
+  const compId=document.getElementById('eval-comp').value;
+  const el=document.getElementById('eval-content');
+  if(!compId){el.innerHTML='';return;}
+  const d=buildEvalData(compId);if(!d){el.innerHTML='';return;}
+  const{comp,parts,stRes,auRes,tPts,dayRank}=d;
+  let html=`<div class="card"><h2>📅 ${fmtDate(comp.date)} – ${comp.location}</h2></div>`;
+
+  const teamTableHTML=(res,topN)=>{
+    if(!res.length)return'<div class="no-data">Keine Daten.</div>';
+    let h=`<div class="overflow"><table><thead><tr><th>Platz</th><th>Mannschaft</th><th>Ringe (Top ${topN})</th><th>Punkte</th></tr></thead><tbody>`;
+    res.forEach((r,i)=>{const m=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';h+=`<tr><td>${m}${r.place}</td><td>${teamBadge(r.team)}</td><td>${r.ringSum}</td><td><strong>${r.pts}</strong></td></tr>`;});
+    return h+'</tbody></table></div>';
+  };
+  html+=`<div class="card"><h2>🏆 Mannschaft – Stehend (Punkte: 5,4,3,2,1)</h2>${teamTableHTML(stRes,5)}</div>`;
+  html+=`<div class="card"><h2>🏆 Mannschaft – Aufgelegt (Punkte: 5,3,1)</h2>${teamTableHTML(auRes,3)}</div>`;
+  if(dayRank.length){
+    html+=`<div class="card"><h2>🎖 Tagessieger</h2><div class="overflow"><table><thead><tr><th>Platz</th><th>Mannschaft</th><th>Punkte gesamt</th></tr></thead><tbody>`;
+    dayRank.forEach(r=>{const m=r.place===1?'🥇':r.place===2?'🥈':r.place===3?'🥉':'';html+=`<tr><td>${m}${r.place}</td><td>${teamBadge(r.team)}</td><td><strong>${r.pts}</strong></td></tr>`;});
+    html+='</tbody></table></div></div>';
+  }
+  ['stehend','aufgelegt'].forEach(disc=>{
+    ['LG','LP','Licht'].forEach(weapon=>{
+      const sub=parts.filter(p=>p.disc===disc&&p.weapon===weapon&&p.rings!==''&&p.rings!=null&&p.rings!==undefined).sort((a,b)=>b.rings-a.rings);
+      if(!sub.length)return;
+      html+=`<div class="card"><h2>📋 ${disc==='stehend'?'Stehend':'Aufgelegt'} / ${weapon}</h2><div class="overflow"><table>
+        <thead><tr><th>Pl.</th><th>Name</th><th>Vorname</th><th>Verein</th><th>Mannschaft</th><th>Jugend</th><th>Ringe</th><th>Punkte</th></tr></thead><tbody>`;
+      sub.forEach((p,i)=>{
+        const pts=(tPts[p.team]||{})[p.disc]||0;
+        const m=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+        html+=`<tr><td>${m}${i+1}</td><td>${p.name}</td><td>${p.firstname}</td><td>${p.club}</td><td>${teamBadge(p.team)}</td><td>${p.youth?'<span class="badge tag-ja">J</span>':''}</td><td><strong>${p.rings}</strong></td><td>${pts}</td></tr>`;
+      });
+      html+='</tbody></table></div></div>';
+    });
+  });
+  el.innerHTML=html;
+}
+
+// ═══════ JAHRESGESAMT ═══════
+function buildOverallData(year){
+  const comps=DB.competitions.filter(c=>c.year===year);
+  if(!comps.length)return null;
+  const compIds=new Set(comps.map(c=>c.id));
+  const cTP={};
+  comps.forEach(comp=>{
+    const pts=DB.participants.filter(p=>p.compId===comp.id);
+    const stR=calcTeamResults(pts,'stehend');
+    const auR=calcTeamResults(pts,'aufgelegt');
+    cTP[comp.id]={};
+    stR.forEach(t=>{cTP[comp.id][t.team]=cTP[comp.id][t.team]||{};cTP[comp.id][t.team].stehend=t.pts;});
+    auR.forEach(t=>{cTP[comp.id][t.team]=cTP[comp.id][t.team]||{};cTP[comp.id][t.team].aufgelegt=t.pts;});
+  });
+  const players={};
+  DB.participants.filter(p=>compIds.has(p.compId)&&p.rings!==''&&p.rings!=null&&p.rings!==undefined).forEach(p=>{
+    const k=`${p.name}|${p.firstname}|${p.club}|${p.disc}|${p.weapon}`;
+    if(!players[k]) players[k]={name:p.name,firstname:p.firstname,club:p.club,disc:p.disc,weapon:p.weapon,youth:p.youth,count:0,ringSum:0,ptsSum:0};
+    const r=players[k];r.count++;r.ringSum+=parseInt(p.rings)||0;
+    r.ptsSum+=((cTP[p.compId]||{})[p.team]||{})[p.disc]||0;
+    r.youth=p.youth;
+  });
+  return Object.values(players).sort((a,b)=>b.ptsSum-a.ptsSum||(b.ringSum/b.count)-(a.ringSum/a.count));
+}
+function renderOverall(){
+  const year=parseInt(document.getElementById('overall-year').value);
+  const el=document.getElementById('overall-content');
+  const rows=buildOverallData(year);
+  if(!rows){el.innerHTML='<div class="card no-data">Keine Wettkämpfe für dieses Jahr.</div>';return;}
+  let html=`<div class="card"><h2>📊 Jahresgesamtauswertung ${year}</h2><div class="overflow"><table>
+    <thead><tr><th>Pl.</th><th>Name</th><th>Vorname</th><th>Verein</th><th>Disziplin</th><th>Waffe</th><th>Jugend</th><th>Wettkämpfe</th><th>Ø Ringe</th><th>Punkte ∑</th></tr></thead><tbody>`;
+  rows.forEach((r,i)=>{
+    const avg=(r.ringSum/r.count).toFixed(1);
+    const m=i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    html+=`<tr><td>${m}${i+1}</td><td>${r.name}</td><td>${r.firstname}</td><td>${r.club}</td>
+      <td>${dBadge(r.disc)}</td><td>${wBadge(r.weapon)}</td>
+      <td>${r.youth?'<span class="badge tag-ja">J</span>':''}</td>
+      <td>${r.count}</td><td>${avg}</td><td><strong>${r.ptsSum}</strong></td></tr>`;
+  });
+  if(!rows.length) html+='<tr><td colspan="10" class="no-data">Keine Daten.</td></tr>';
+  html+='</tbody></table></div></div>';
+  el.innerHTML=html;
+}
+
+// ═══════ EXCEL EXPORT ═══════
+function exportEvalExcel(){
+  const compId=document.getElementById('eval-comp').value;if(!compId){toast('Kein Wettkampf gewählt','#e74c3c');return;}
+  const d=buildEvalData(compId);if(!d)return;
+  const{comp,parts,stRes,auRes,tPts,dayRank}=d;
+  const wb=XLSX.utils.book_new();
+  const addSheet=(data,name)=>XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data),name);
+  addSheet([['Platz','Mannschaft','Ringe (Top 5)','Punkte'],...stRes.map(r=>[r.place,r.team,r.ringSum,r.pts])],'Mannschaft Stehend');
+  addSheet([['Platz','Mannschaft','Ringe (Top 3)','Punkte'],...auRes.map(r=>[r.place,r.team,r.ringSum,r.pts])],'Mannschaft Aufgelegt');
+  addSheet([['Platz','Mannschaft','Punkte gesamt'],...dayRank.map(r=>[r.place,r.team,r.pts])],'Tagessieger');
+  const erRows=[['Pl.','Name','Vorname','Verein','Disziplin','Waffe','Mannschaft','Jugend','Ringe','Punkte']];
+  ['stehend','aufgelegt'].forEach(disc=>['LG','LP','Licht'].forEach(weapon=>{
+    parts.filter(p=>p.disc===disc&&p.weapon===weapon&&p.rings!==''&&p.rings!=null).sort((a,b)=>b.rings-a.rings)
+      .forEach((p,i)=>erRows.push([i+1,p.name,p.firstname,p.club,p.disc,p.weapon,p.team,p.youth?'Ja':'',p.rings,(tPts[p.team]||{})[p.disc]||0]));
+  }));
+  addSheet(erRows,'Ergebnisliste');
+  XLSX.writeFile(wb,`Fruehjahrsrunde_${fmtDate(comp.date).replace(/\./g,'')}_${comp.location}.xlsx`);
+  toast('Excel exportiert!');
+}
+function exportOverallExcel(){
+  const year=parseInt(document.getElementById('overall-year').value);
+  const rows=buildOverallData(year);if(!rows){toast('Keine Daten','#e74c3c');return;}
+  const data=[['Platz','Name','Vorname','Verein','Disziplin','Waffe','Jugend','Wettkämpfe','Ø Ringe','Punkte ∑'],
+    ...rows.map((r,i)=>[i+1,r.name,r.firstname,r.club,r.disc,r.weapon,r.youth?'Ja':'',r.count,(r.ringSum/r.count).toFixed(1),r.ptsSum])];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(data),`Gesamt ${year}`);
+  XLSX.writeFile(wb,`Fruehjahrsrunde_Jahresgesamt_${year}.xlsx`);
+  toast('Excel exportiert!');
+}
+
+// ═══════ PDF EXPORT ═══════
+function exportEvalPDF(){
+  const compId=document.getElementById('eval-comp').value;if(!compId){toast('Kein Wettkampf gewählt','#e74c3c');return;}
+  const d=buildEvalData(compId);if(!d)return;
+  const{comp,parts,stRes,auRes,tPts,dayRank}=d;
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape'});
+  doc.setFontSize(14);doc.text(`Frühjahrsrunde – ${fmtDate(comp.date)} ${comp.location}`,14,14);
+  let y=20;
+  const tbl=(head,body,title)=>{
+    doc.setFontSize(10);doc.text(title,14,y);y+=3;
+    doc.autoTable({head:[head],body,startY:y,theme:'striped',styles:{fontSize:8},headStyles:{fillColor:[233,69,96]},margin:{left:14}});
+    y=doc.lastAutoTable.finalY+7;
+  };
+  tbl(['Platz','Mannschaft','Ringe (Top 5)','Punkte'],stRes.map(r=>[r.place,r.team,r.ringSum,r.pts]),'Mannschaft – Stehend');
+  tbl(['Platz','Mannschaft','Ringe (Top 3)','Punkte'],auRes.map(r=>[r.place,r.team,r.ringSum,r.pts]),'Mannschaft – Aufgelegt');
+  tbl(['Platz','Mannschaft','Punkte gesamt'],dayRank.map(r=>[r.place,r.team,r.pts]),'Tagessieger');
+  ['stehend','aufgelegt'].forEach(disc=>['LG','LP','Licht'].forEach(weapon=>{
+    const sub=parts.filter(p=>p.disc===disc&&p.weapon===weapon&&p.rings!==''&&p.rings!=null).sort((a,b)=>b.rings-a.rings);
+    if(!sub.length)return;
+    tbl(['Pl.','Name','Vorname','Verein','Mannschaft','Jugend','Ringe','Punkte'],
+      sub.map((p,i)=>[i+1,p.name,p.firstname,p.club,p.team,p.youth?'J':'',p.rings,(tPts[p.team]||{})[p.disc]||0]),
+      `Ergebnisse – ${disc==='stehend'?'Stehend':'Aufgelegt'} / ${weapon}`);
+  }));
+  doc.save(`Fruehjahrsrunde_${fmtDate(comp.date).replace(/\./g,'')}_${comp.location}.pdf`);
+  toast('PDF exportiert!');
+}
+function exportOverallPDF(){
+  const year=parseInt(document.getElementById('overall-year').value);
+  const rows=buildOverallData(year);if(!rows){toast('Keine Daten','#e74c3c');return;}
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'landscape'});
+  doc.setFontSize(14);doc.text(`Frühjahrsrunde – Jahresgesamt ${year}`,14,14);
+  doc.autoTable({
+    head:[['Pl.','Name','Vorname','Verein','Disziplin','Waffe','Jugend','Wettkämpfe','Ø Ringe','Punkte ∑']],
+    body:rows.map((r,i)=>[i+1,r.name,r.firstname,r.club,r.disc,r.weapon,r.youth?'J':'',r.count,(r.ringSum/r.count).toFixed(1),r.ptsSum]),
+    startY:20,theme:'striped',styles:{fontSize:8},headStyles:{fillColor:[233,69,96]}
+  });
+  doc.save(`Fruehjahrsrunde_Jahresgesamt_${year}.pdf`);
+  toast('PDF exportiert!');
+}
+
+// ═══════ INIT ═══════
+async function init(){
+  loadLocal();
+  refreshYearSelects();
+  renderCompetitions();
+  await loadFromCloud();
+  refreshYearSelects();
+  renderCompetitions();
+}
+init();
+</script>
+</body>
+</html>
